@@ -20,6 +20,9 @@ description = "This is an internal crate for common cryptographic types"
 license = "MIT OR Apache-2.0"
 repository = "https://github.com/near/nearcore"
 
+[dependencies.rsa]
+version = "0.9.6"
+
 [dependencies.arrayref]
 version = "0.3"
 

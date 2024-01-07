@@ -1,20 +1,18 @@
 use crate::{signature, vrf, PublicKey};
-use arrayref::array_ref;
 use curve25519_dalek::edwards::{CompressedEdwardsY, EdwardsPoint};
 use curve25519_dalek::ristretto::RistrettoPoint;
-use curve25519_dalek::scalar::Scalar;
 use std::mem::transmute;
 
 pub fn is_valid_staking_key(public_key: &PublicKey) -> bool {
     // The valid staking key is ED25519, and can be converted to ristretto.
     match public_key {
         PublicKey::ED25519(key) => convert_public_key(key).is_some(),
-        PublicKey::SECP256K1(_) => false,
+        _ => false,
     }
 }
 
 pub fn convert_public_key(key: &signature::ED25519PublicKey) -> Option<vrf::PublicKey> {
-    let ep: EdwardsPoint = CompressedEdwardsY::from_slice(&key.0).decompress()?;
+    let ep: EdwardsPoint = CompressedEdwardsY::from_slice(&key.0).ok()?.decompress()?;
     // All properly generated public keys are torsion-free. RistrettoPoint type can handle some values that are not torsion-free, but not all.
     if !ep.is_torsion_free() {
         return None;
@@ -25,11 +23,9 @@ pub fn convert_public_key(key: &signature::ED25519PublicKey) -> Option<vrf::Publ
 }
 
 pub fn convert_secret_key(key: &signature::ED25519SecretKey) -> vrf::SecretKey {
-    let b = ed25519_dalek::ExpandedSecretKey::from(
-        &ed25519_dalek::SecretKey::from_bytes(&key.0[..32]).unwrap(),
-    )
-    .to_bytes();
-    vrf::SecretKey::from_scalar(Scalar::from_bytes_mod_order(*array_ref!(&b, 0, 32)))
+    let b = <&[u8; 32]>::try_from(&key.0[..32]).unwrap();
+    let s = ed25519_dalek::hazmat::ExpandedSecretKey::from(b).scalar;
+    vrf::SecretKey::from_scalar(s)
 }
 
 #[cfg(test)]
